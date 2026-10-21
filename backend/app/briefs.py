@@ -13,7 +13,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from . import llm, scraper
+from . import llm, localization, scraper
 from .profile import LANGUAGE_NAMES, Profile
 
 BRIEF_SYSTEM = """You turn an official Indian government scheme description into a
@@ -57,6 +57,8 @@ class Card(BaseModel):
     apply_url: Optional[str] = None
     source_url: str
     backend: str = "gemini"
+    source_language: str = "en"
+    translation_status: str = "verified"
     check: dict = {}
 
 
@@ -91,17 +93,42 @@ def _first(text: str, words: int) -> str:
     return " ".join(w[:words]) + ("…" if len(w) > words else "")
 
 
-def _template(d: dict) -> Brief:
-    docs = [l.lstrip("-•0123456789. ").strip() for l in (d.get("documents") or "").splitlines()]
-    docs = [x for x in docs if x and len(x) < 60 and "document" not in x.lower()][:5]
-    modes = ", ".join(a["mode"] for a in d.get("apply") or [] if a.get("mode"))
-    return Brief(title=d.get("short_title") or d.get("name") or d["slug"],
+def _template(d: dict, language: str = "en") -> Brief:
+    docs_val = d.get("documents") or ""
+    if isinstance(docs_val, list):
+        raw_docs = [str(x).strip() for x in docs_val]
+    else:
+        raw_docs = [l.lstrip("-•0123456789. ").strip() for l in docs_val.splitlines()]
+    clean_docs = [x for x in raw_docs if x and len(x) < 60 and "document" not in x.lower()][:5]
+    docs = [localization.translate_doc_name(x, language) for x in clean_docs]
+
+    modes = [a["mode"] for a in d.get("apply") or [] if a.get("mode")]
+    how_to = localization.translate_apply_modes(modes, language)
+
+    eng_name = d.get("official_name") or d.get("name") or d.get("slug")
+    loc_title = None
+    if d.get("has_native"):
+        loc_title = d.get("short_title") or d.get("name")
+    else:
+        known = localization.get_known_scheme_title(d.get("slug", ""), language)
+        if known:
+            loc_title = known
+
+    if loc_title and loc_title != eng_name:
+        if "(" in loc_title:
+            title = loc_title
+        else:
+            title = f"{loc_title} ({eng_name})" if eng_name else loc_title
+    else:
+        title = d.get("short_title") or d.get("name") or d.get("slug", "")
+
+    return Brief(title=title,
                  one_line=_first(d.get("brief") or "", 12),
                  benefit=_first(d.get("benefits") or "", 25),
                  who_can_get=_first(d.get("eligibility") or "", 30),
-                 how_to_apply=f"Apply {modes}." if modes else "See the official scheme page.",
+                 how_to_apply=how_to,
                  documents=docs,
-                 spoken=_first(f"{d.get('name')}. {d.get('brief') or ''}", 60))
+                 spoken=_first(f"{title}. {d.get('brief') or ''}", 60))
 
 
 def _source_text(d: dict) -> str:
@@ -136,19 +163,28 @@ async def card(slug: str, language: str = "en", profile: Profile | None = None) 
     prompt = json.dumps({"LANGUAGE": f"{LANGUAGE_NAMES.get(language, 'English')} ({language})",
                          "PERSON": person, "SOURCE": source}, ensure_ascii=False, indent=1)
 
-    backend, check = "gemini", {}
+    backend, translation_status, check = "gemini", "ai", {}
     try:
         brief = await asyncio.to_thread(llm.generate, BRIEF_SYSTEM, prompt, Brief, 0.2)
         check = _check(brief, source)
         if not check["ok"]:             # a number we cannot back up: don't risk it
-            brief, backend = _template(d), "template"
+            brief = _template(d, language)
+            backend = "portal" if d.get("has_native") else "template"
+            translation_status = "verified" if d.get("has_native") else ("fallback_english" if language != "en" else "verified")
     except Exception as e:              # noqa: BLE001 - demo must not die
-        brief, backend, check = _template(d), "template", {"error": str(e)[:200]}
+        brief = _template(d, language)
+        backend = "portal" if d.get("has_native") else "template"
+        translation_status = "verified" if d.get("has_native") else ("fallback_english" if language != "en" else "verified")
+        check = {"error": str(e)[:200]}
 
     apply = d.get("apply") or []
-    c = Card(slug=slug, language=language, brief=brief, official_name=d.get("name"),
+    official_name = d.get("official_name") or d.get("name")
+    c = Card(slug=slug, language=language, brief=brief, official_name=official_name,
              apply_modes=[a["mode"] for a in apply if a.get("mode")],
              apply_url=next((a["url"] for a in apply if a.get("url")), None),
-             source_url=d["url"], backend=backend, check=check)
+             source_url=d.get("url", f"https://www.myscheme.gov.in/schemes/{slug}"),
+             backend=backend,
+             source_language=d.get("source_language", "en"),
+             translation_status=translation_status, check=check)
     _cache[key] = c
     return c

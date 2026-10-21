@@ -148,7 +148,7 @@ export function SchemeDetailSheet({ view, official, card, state, whyList, onClos
               <CategoryDisc category={view.category} size={72} />
               <div className="min-w-0">
                 <h2 id="scheme-title" lang={lang} className="break-words text-title">{view.title}</h2>
-                {official && <p lang="en" className="text-caption text-ink-muted">{official}</p>}
+                {official && official !== view.title && <p lang="en" className="text-caption text-ink-muted">{official}</p>}
               </div>
             </div>
             <div className="mt-4 flex items-center gap-3 rounded-lg bg-turmeric-100 p-4">
@@ -157,6 +157,12 @@ export function SchemeDetailSheet({ view, official, card, state, whyList, onClos
               <ListenButton size="lg" tone="warm" text={benefit} lang={lang} />
             </div>
             <div className="mt-4"><MatchBadge strength={view.strength} /></div>
+            {((view.translationStatus === 'fallback_english' || card?.translation_status === 'fallback_english') && lang !== 'en') && (
+              <div className="mt-3 flex items-center gap-2 rounded-md bg-turmeric-100/60 p-2 text-caption text-ink-muted">
+                <Icon name="link" size={16} />
+                <span>{t.englishSourceNotice}</span>
+              </div>
+            )}
 
             {!brief ? <LoadingBody state={state} onRetry={onRetry} /> : (
               <div className="mt-6 flex flex-col gap-6">

@@ -94,8 +94,8 @@ export const api = {
       timeout: 60000,
     }),
 
-  match: (profile, limit = 12) =>
-    request('/api/schemes/match', { method: 'POST', json: { profile, limit }, timeout: 60000 }),
+  match: (profile, limit = 12, language = 'en') =>
+    request('/api/schemes/match', { method: 'POST', json: { profile, limit, language }, timeout: 60000 }),
 
   card: (slug, language, profile) =>
     request(`/api/schemes/${encodeURIComponent(slug)}/card`, {

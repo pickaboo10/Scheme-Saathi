@@ -198,7 +198,7 @@ export function SearchingScreen({ profile, lang, offline, onDone }) {
       setProgress((p) => Math.min(0.9, p + (0.9 - p) * 0.06));
       if (s > 8) setSlow(true);
     }, 700);
-    api.match(profile)
+    api.match(profile, 12, lang)
       .then((res) => {
         if (cancelled) return;
         if (res.count === 0 && res.searched > 0 && res.failed_searches >= res.searched) {
@@ -211,7 +211,7 @@ export function SearchingScreen({ profile, lang, offline, onDone }) {
       .finally(() => clearInterval(tick));
     return () => { cancelled = true; clearInterval(tick); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offline, attempt]);
+  }, [offline, attempt, lang]);
 
   const banner = error ? bannerFor(error) : null;
   return (

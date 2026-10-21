@@ -17,7 +17,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 
-from . import scraper
+from . import localization, scraper
 from .profile import FamilyMember, Profile, _f, base_filters
 
 NORTH_EAST = {"Arunachal Pradesh", "Assam", "Manipur", "Meghalaya", "Mizoram", "Nagaland",
@@ -281,7 +281,7 @@ def _member_queries(p: Profile, m: FamilyMember) -> list[Query]:
     return qs
 
 
-async def find_schemes(p: Profile, limit: int = 12, per_query: int = 50) -> dict:
+async def find_schemes(p: Profile, limit: int = 12, per_query: int = 50, language: str = "en") -> dict:
     queries = _queries_for_person(p)
     for m in p.family_members[:6]:
         queries += _member_queries(p, m)
@@ -357,24 +357,66 @@ async def find_schemes(p: Profile, limit: int = 12, per_query: int = 50) -> dict
             chosen.append(m)
     chosen.sort(key=lambda m: m.score, reverse=True)
 
+    chosen_items = chosen[:limit]
+    localized_details = {}
+    if language != "en" and chosen_items:
+        details = await asyncio.gather(
+            *(scraper.detail(m.slug, lang=language) for m in chosen_items),
+            return_exceptions=True
+        )
+        for m, d in zip(chosen_items, details):
+            if isinstance(d, dict) and d.get("name"):
+                localized_details[m.slug] = d
+
+    schemes_out = []
+    for m in chosen_items:
+        d = localized_details.get(m.slug) or {}
+        eng_name = m.item.get("name")
+        loc_title = None
+
+        if d.get("name"):
+            loc_title = d.get("name")
+        else:
+            known = localization.get_known_scheme_title(m.slug, language)
+            if known:
+                loc_title = known
+
+        if loc_title and loc_title != eng_name:
+            if "(" in loc_title:
+                display_name = loc_title
+            else:
+                display_name = f"{loc_title} ({eng_name})" if eng_name else loc_title
+            short_title = d.get("short_title") or m.item.get("short_title")
+            brief = d.get("brief") or m.item.get("brief")
+        else:
+            display_name = eng_name
+            short_title = m.item.get("short_title")
+            brief = m.item.get("brief")
+
+        reasons = [localization.translate_reason(r, language) for r in m.reasons]
+
+        schemes_out.append({
+            "slug": m.slug,
+            "name": display_name,
+            "official_name": eng_name,
+            "short_title": short_title,
+            "brief": brief,
+            "level": d.get("level") or m.item.get("level"),
+            "ministry": d.get("ministry") or m.item.get("ministry"),
+            "department": d.get("department") or m.item.get("department"),
+            "categories": m.item.get("categories"),
+            "tags": m.item.get("tags"),
+            "for": m.members,
+            "why": reasons,
+            "score": round(m.score, 2),
+            "url": f"{scraper.BASE}/schemes/{m.slug}",
+        })
+
     return {
-        "count": len(chosen[:limit]),
+        "count": len(schemes_out),
         "total_found": len(matches),
         "searched": len(queries),
         "failed_searches": errors,
         "dropped_not_for_you": len(dropped),
-        "schemes": [{
-            "slug": m.slug,
-            "name": m.item.get("name"),
-            "short_title": m.item.get("short_title"),
-            "brief": m.item.get("brief"),
-            "level": m.item.get("level"),
-            "ministry": m.item.get("ministry"),
-            "categories": m.item.get("categories"),
-            "tags": m.item.get("tags"),
-            "for": m.members,
-            "why": m.reasons,
-            "score": round(m.score, 2),
-            "url": f"{scraper.BASE}/schemes/{m.slug}",
-        } for m in chosen[:limit]],
+        "schemes": schemes_out,
     }

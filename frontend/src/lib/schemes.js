@@ -54,17 +54,22 @@ const clip = (text, max) => {
 /** Everything a SchemeCard needs. `card` is the localised flashcard if it has loaded. */
 export function schemeView(s, card, lang) {
   const brief = card?.brief;
-  // A "template" card is plain English built from the portal text, so it must be read in English.
-  const localised = !!brief && card.backend !== 'template';
+  const title = brief?.title || s.short_title || s.name || s.slug;
+  const benefit = clip(brief?.one_line || brief?.benefit || s.brief, 140);
+  const official = s.official_name || card?.official_name || s.name;
+  const hasIndic = /[^\x00-\x7F]/.test(`${title} ${benefit}`);
+  const listenLang = (lang && lang !== 'en' && hasIndic) ? lang : 'en';
+
   return {
     slug: s.slug,
     category: categoryOf(s),
     strength: strengthOf(s),
-    title: brief?.title || s.short_title || s.name || s.slug,
-    official: s.name,
-    benefit: clip(brief?.one_line || brief?.benefit || s.brief, 140),
+    title,
+    official,
+    benefit,
     why: (s.why || [])[0] || '',
-    listenLang: localised ? lang : 'en',
+    listenLang,
+    translationStatus: card?.translation_status || (hasIndic ? 'verified' : 'fallback_english'),
   };
 }
 

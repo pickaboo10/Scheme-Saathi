@@ -80,6 +80,7 @@ const en = {
   loadingDetails: 'Getting the details…',
   loadingNote: 'Please stay on this screen.',
   cardHint: 'Tap a card to see full details',
+  englishSourceNotice: 'Official scheme details provided in English by portal',
 
   sorryTitle: 'Sorry, could you say that again?',
   sorryBody: 'Speak a little slowly, close to the phone.',
@@ -173,6 +174,7 @@ const hi = {
   whoCan: 'यह किसे मिल सकती है',
   whatGet: 'आपको क्या मिलेगा',
   docs: 'ज़रूरी कागज़',
+  englishSourceNotice: 'आधिकारिक योजना विवरण पोर्टल द्वारा अंग्रेजी में उपलब्ध कराया गया है',
   howApply: 'कैसे और कहाँ आवेदन करें',
   whyShown: 'यह आपको क्यों दिख रही है',
   haveIt: 'मेरे पास है',
@@ -1260,18 +1262,110 @@ export function translateReason(text, lang) {
   if (/For widows/i.test(text) && WIDOW_MAP[lang]) return WIDOW_MAP[lang];
   if (/Central government scheme, all states/i.test(text) && CENTRAL_MAP[lang]) return CENTRAL_MAP[lang];
 
-  if (lang === 'hi') {
-    if (/For minority communities/i.test(text)) return 'अल्पसंख्यक समुदाय के लिए';
-    const stateMatch = text.match(/^A\s+(.+?)\s+state scheme$/i);
-    if (stateMatch) return `${stateMatch[1]} राज्य की योजना`;
-    const workMatch = text.match(/^(?:For your work|Matches your work):\s*(.+)$/i);
-    if (workMatch) return `आपके काम के लिए: ${workMatch[1]}`;
-    const needMatch = text.match(/^Matches what you asked for:\s*(.+)$/i);
-    if (needMatch) return `आपकी ज़रूरत के अनुसार: ${needMatch[1]}`;
-    const protMatch = text.match(/^Basic protection:\s*(.+)$/i);
-    if (protMatch) return `सुरक्षा और सहायता: ${protMatch[1]}`;
-    const casteMatch = text.match(/^For\s+(.+?)\s+category$/i);
-    if (casteMatch) return `${casteMatch[1]} वर्ग के लिए`;
+  const STATE_NAMES = {
+    Haryana: { hi: 'हरियाणा', kn: 'ಹರಿಯಾಣ', ta: 'ஹரியானா', te: 'హర్యానా', mr: 'हरियाणा', bn: 'হরিয়ানা', gu: 'હરિયાણા', pa: 'ਹਰਿਆਣਾ', or: 'ହରିୟାଣା', ml: 'ഹരിയാന' },
+    Karnataka: { hi: 'कर्नाटक', kn: 'ಕರ್ನಾಟಕ', ta: 'கர்நாடகா', te: 'కర్ణాటక', mr: 'कर्नाटक', bn: 'কর্ণাটক', gu: 'કર્ણાટક', pa: 'ਕਰਨਾਟਕ', or: 'କର୍ଣ୍ଣାଟକ', ml: 'കർണാടക' },
+    'Uttar Pradesh': { hi: 'उत्तर प्रदेश', kn: 'ಉತ್ತರ ಪ್ರದೇಶ', ta: 'உத்தரப் பிரதேசம்', te: 'ఉత్తర ప్రదేశ్', mr: 'उत्तर प्रदेश', bn: 'উত্তর প্রদেশ', gu: 'ઉત્તર પ્રદેશ', pa: 'ਉੱਤਰ ਪ੍ਰਦੇਸ਼', or: 'ଉତ୍ତର ପ୍ରଦେଶ', ml: 'ഉത്തർപ്രദേശ്' },
+    Bihar: { hi: 'बिहार', kn: 'ಬಿಹಾರ', ta: 'பீகார்', te: 'బీహార్', mr: 'बिहार', bn: 'বিহার', gu: 'બિહાર', pa: 'ਬਿਹਾਰ', or: 'ବିହାର', ml: 'ബിഹാർ' },
+    Maharashtra: { hi: 'महाराष्ट्र', kn: 'ಮಹಾರಾಷ್ಟ್ರ', ta: 'மகாராஷ்டிரா', te: 'మహారాష్ట్ర', mr: 'महाराष्ट्र', bn: 'মহারাষ্ট্র', gu: 'મહારાષ્ટ્ર', pa: 'ਮਹਾਰਾਸ਼ਟਰ', or: 'ମହାରାଷ୍ଟ୍ର', ml: 'മഹാരാഷ്ട്ര' },
+    Rajasthan: { hi: 'राजस्थान', kn: 'ರಾಜಸ್ಥಾನ', ta: 'ராஜஸ்தான்', te: 'రాజస్థాన్', mr: 'राजस्थान', bn: 'রাজস্থান', gu: 'રાજસ્થાન', pa: 'ਰਾਜਸਥਾਨ', or: 'ରାଜସ୍ଥାନ', ml: 'രാജസ്ഥാൻ' },
+    'Madhya Pradesh': { hi: 'मध्य प्रदेश', kn: 'ಮಧ್ಯ ಪ್ರದೇಶ', ta: 'மத்தியப் பிரதேசம்', te: 'మధ్య ప్రదేశ్', mr: 'मध्य प्रदेश', bn: 'মধ্য প্রদেশ', gu: 'મધ્ય પ્રદેશ', pa: 'ਮੱਧ ਪ੍ਰਦੇਸ਼', or: 'ମଧ୍ୟ ପ୍ରଦେଶ', ml: 'മധ്യപ്രദേശ്' },
+    Gujarat: { hi: 'गुजरात', kn: 'ಗುಜರಾತ್', ta: 'குஜராத்', te: 'గుజరాత్', mr: 'गुजरात', bn: 'গুজরাট', gu: 'ગુજરાત', pa: 'ਗੁਜਰਾਤ', or: 'ଗୁଜରାଟ', ml: 'ഗുജറാത്ത്' },
+    'West Bengal': { hi: 'पश्चिम बंगाल', kn: 'ಪಶ್ಚಿಮ ಬಂಗಾಳ', ta: 'மேற்கு வங்கம்', te: 'పశ్చిమ బెంగాల్', mr: 'पश्चिम बंगाल', bn: 'পশ্চিমবঙ্গ', gu: 'પશ્ચિમ બંગાળ', pa: 'ਪੱਛਮੀ ਬੰਗਾਲ', or: 'ପଶ୍ଚିମ ବଙ୍ଗ', ml: 'പശ്ചിമ ബംഗാൾ' },
+    'Tamil Nadu': { hi: 'तमिलनाडु', kn: 'ತಮಿಳುನಾಡು', ta: 'தமிழ்நாடு', te: 'తమిళనాడు', mr: 'तमिळनाडू', bn: 'তামিলনাড়ু', gu: 'તમિલનાડુ', pa: 'ਤਾਮਿਲਨਾਡੂ', or: 'ତାମିଲନାଡୁ', ml: 'തമിഴ്നാട്' },
+    Punjab: { hi: 'पंजाब', kn: 'ಪಂಜಾಬ್', ta: 'பஞ்சாப்', te: 'పంజాబ్', mr: 'पंजाब', bn: 'পাঞ্জাব', gu: 'પંજાબ', pa: 'ਪੰਜਾਬ', or: 'ପଞ୍ଜାବ', ml: 'പഞ്ചാബ്' },
+    Odisha: { hi: 'ओडिशा', kn: 'ಒಡಿಶಾ', ta: 'ஒடிசா', te: 'ఒడిశా', mr: 'ओडिशा', bn: 'ওড়িশা', gu: 'ઓડિશા', pa: 'ਓਡੀਸ਼ਾ', or: 'ଓଡ଼ିଶା', ml: 'ഒഡീഷ' },
+    Kerala: { hi: 'केरल', kn: 'ಕೇರಳ', ta: 'கேரளா', te: 'కేరళ', mr: 'केरळ', bn: 'কেরল', gu: 'કેરળ', pa: 'ਕੇਰਲ', or: 'କେରଳ', ml: 'കേരളം' },
+    'Andhra Pradesh': { hi: 'आंध्र प्रदेश', kn: 'ಆಂಧ್ರ ಪ್ರದೇಶ', ta: 'ஆந்திரப் பிரதேசம்', te: 'ఆంధ్ర ప్రదేశ్', mr: 'आंध्र प्रदेश', bn: 'অন্ধ্র প্রদেশ', gu: 'આંધ્ર પ્રદેશ', pa: 'ਆਂਧਰਾ ਪ੍ਰਦੇਸ਼', or: 'ଆନ୍ଧ୍ର ପ୍ରଦେଶ', ml: 'ആന്ധ്രാപ്രദേശ്' },
+    Telangana: { hi: 'तेलंगाना', kn: 'ತೆಲಂಗಾಣ', ta: 'தெலங்கானா', te: 'తెలంగాణ', mr: 'तेलंगणा', bn: 'তেলেঙ্গানা', gu: 'તેલંગાણા', pa: 'ਤੇਲੰਗਾਨਾ', or: 'ତେଲେଙ୍ଗାନା', ml: 'തെലങ്കാന' },
+    Assam: { hi: 'असम', kn: 'ಅಸ್ಸಾಂ', ta: 'அசாம்', te: 'అస్సాం', mr: 'आसाम', bn: 'আসাম', gu: 'આસામ', pa: 'ਅਸਾਮ', or: 'ଆସାମ', ml: 'അസം' },
+  };
+
+  const OCCUPATIONS = {
+    Farmer: { hi: 'किसान', kn: 'ರೈತ', ta: 'விவசாயி', te: 'రైతు', mr: 'शेतकरी', bn: 'কৃষক', gu: 'ખેડૂત', pa: 'ਕਿਸਾਨ', or: 'କୃଷକ', ml: 'കർഷകൻ' },
+    'Dairy Farmer': { hi: 'डेयरी किसान', kn: 'ಹೈನುಗಾರ', ta: 'பால் பண்ணையாளர்', te: 'పాడి రైతు', mr: 'दुग्ध उत्पादक', bn: 'দুগ্ধ খামারি', gu: 'ડેરી ખેડૂત', pa: 'ਡੇਅਰੀ ਕਿਸਾਨ', or: 'ଦୁଗ୍ଧ ଚାଷୀ', ml: 'ക്ഷീരകർഷകൻ' },
+    Fishermen: { hi: 'मछुआरा', kn: 'ಮೀನುಗಾರ', ta: 'மீனவர்', te: 'మత్స్యకారుడు', mr: 'मासेमार', bn: 'মৎস্যজীবী', gu: 'માછીમાર', pa: 'ਮਛੇਰੇ', or: 'ମତ୍ସ୍ୟଜୀବୀ', ml: 'മത്സ്യത്തൊഴിലാളി' },
+    'Construction Worker': { hi: 'निर्माण श्रमिक', kn: 'ಕಟ್ಟಡ ಕಾರ್ಮಿಕ', ta: 'கட்டுமானத் தொழிலாளி', te: 'భవన నిర్మాణ కార్మికుడు', mr: 'बांधकाम कामगार', bn: 'নির্মাণ শ্রমিক', gu: 'બાંધકામ મજૂર', pa: 'ਉਸਾਰੀ ਮਜ਼ਦੂਰ', or: 'ନିର୍ମାଣ ଶ୍ରମିକ', ml: 'നിർമ്മാണ തൊഴിലാളി' },
+    'Unorganized Worker': { hi: 'असंगठित क्षेत्र के कामगार', kn: 'ಅಸಂಘಟಿತ ಕಾರ್ಮಿಕ', ta: 'முறைசாரா தொழிலாளி', te: 'అసంఘటిత కార్మికుడు', mr: 'असंघटित कामगार', bn: 'অসংগঠিত শ্রমিক', gu: 'અસંગઠિત કામદાર', pa: 'ਗੈਰ-ਜਥੇਬੰਦਕ ਮਜ਼ਦੂਰ', or: 'ଅଣସଂଗଠିତ ଶ୍ରମିକ', ml: 'അസംഘടിത തൊഴിലാളി' },
+    'Artisans, Spinners & Weavers': { hi: 'कारीगर और बुनकर', kn: 'ಕುಶಲಕರ್ಮಿಗಳು ಮತ್ತು ನೇಕಾರರು', ta: 'கைவினைஞர்கள் மற்றும் நெசவாளர்கள்', te: 'చేతివృత్తులవారు మరియు చేనేతకారులు', mr: 'कारागीर आणि विणकर', bn: 'কারিগর এবং তাঁতি', gu: 'કારીગરો અને વણકરો', pa: 'ਕਾਰੀਗਰ ਅਤੇ ਜੁਲਾਹੇ', or: 'କାରିଗର ଏବଂ ବୁଣାକାର', ml: 'കൈത്തറി തൊഴിലാളികളും നെയ്ത്തുകാരും' },
+    'Street Vendor': { hi: 'स्ट्रीट वेंडर (रेहड़ी-पटरी वाले)', kn: 'ಬೀದಿ ವ್ಯಾಪಾರಿ', ta: 'தெருவோர வியாபாரி', te: 'వీధి వ్యాపారి', mr: 'फेरीवाले', bn: 'হকার', gu: 'શેરી ફેરિયા', pa: 'ਰੇਹੜੀ ਫੜ੍ਹੀ ਵਾਲੇ', or: 'ରାସ୍ତାକଡ଼ ବିକ୍ରେତା', ml: 'തെരുവ് കച്ചവടക്കാരൻ' },
+    Student: { hi: 'विद्यार्थी', kn: 'ವಿದ್ಯಾರ್ಥಿ', ta: 'மாணவர்', te: 'విద్యార్థి', mr: 'विद्यार्थी', bn: 'শিক্ষার্থী', gu: 'વિદ્યાર્થી', pa: 'ਵਿਦਿਆਰਥੀ', or: 'ଛାତ୍ରଛାତ୍ରୀ', ml: 'വിദ്യാർത്ഥി' },
+  };
+
+  const stateMatch = text.match(/^A\s+(.+?)\s+state scheme$/i);
+  if (stateMatch) {
+    const stEn = stateMatch[1].trim();
+    const stTrans = STATE_NAMES[stEn]?.[lang] || stEn;
+    const STATE_TPL = {
+      hi: `${stTrans} राज्य की योजना`, kn: `${stTrans} ರಾಜ್ಯದ ಯೋಜನೆ`, ta: `${stTrans} மாநில திட்டம்`, te: `${stTrans} రాష్ట్ర పథకం`,
+      mr: `${stTrans} राज्य सरकारची योजना`, bn: `${stTrans} রাজ্য প্রকল্প`, gu: `${stTrans} રાજ્યની યોજના`, pa: `${stTrans} ਰਾਜ ਦੀ ਸਕੀਮ`,
+      or: `${stTrans} ରାଜ୍ୟ ଯୋଜନା`, ml: `${stTrans} സംസ്ഥാന പദ്ധതി`,
+    };
+    if (STATE_TPL[lang]) return STATE_TPL[lang];
   }
+
+  const workMatch = text.match(/^(?:For your work|Matches your work):\s*(.+)$/i);
+  if (workMatch) {
+    const jobEn = workMatch[1].trim();
+    const jobTrans = OCCUPATIONS[jobEn]?.[lang] || jobEn;
+    const WORK_TPL = {
+      hi: `आपके काम के लिए: ${jobTrans}`, kn: `ನಿಮ್ಮ ಕೆಲಸಕ್ಕಾಗಿ: ${jobTrans}`, ta: `உங்கள் பணிக்காக: ${jobTrans}`, te: `మీ పని కోసం: ${jobTrans}`,
+      mr: `तुमच्या कामासाठी: ${jobTrans}`, bn: `আপনার কাজের জন্য: ${jobTrans}`, gu: `તમારા કામ માટે: ${jobTrans}`, pa: `ਤੁਹਾਡੇ ਕੰਮ ਲਈ: ${jobTrans}`,
+      or: `ଆପଣଙ୍କ କାମ ପାଇଁ: ${jobTrans}`, ml: `നിങ്ങളുടെ ജോലിക്കായി: ${jobTrans}`,
+    };
+    if (WORK_TPL[lang]) return WORK_TPL[lang];
+  }
+
+  if (/daughter's studies/i.test(text)) {
+    const daughterMap = {
+      hi: 'आपकी बेटी की पढ़ाई के लिए', kn: 'ನಿಮ್ಮ ಮಗಳ ವ್ಯಾಸಂಗಕ್ಕಾಗಿ', ta: 'உங்கள் மகளின் படிப்புக்கு',
+      te: 'మీ కుమార్తె చదువు కోసం', mr: 'तुमच्या मुलीच्या शिक्षणासाठी', bn: 'আপনার মেয়ের পড়াশোনার জন্য',
+      gu: 'તમારી દીકરીના અભ્યાસ માટે', pa: 'ਤੁਹਾਡੀ ਧੀ ਦੀ ਪੜ੍ਹਾਈ ਲਈ', or: 'ଆପଣଙ୍କ ଝିଅର ପାଠପଢ଼ା ପାଇଁ', ml: 'നിങ്ങളുടെ മകളുടെ പഠനത്തിനായി',
+    };
+    if (daughterMap[lang]) return daughterMap[lang];
+  }
+
+  if (/son's studies/i.test(text)) {
+    const sonMap = {
+      hi: 'आपके बेटे की पढ़ाई के लिए', kn: 'ನಿಮ್ಮ ಮಗನ ವ್ಯಾಸಂಗಕ್ಕಾಗಿ', ta: 'உங்கள் மகனின் படிப்புக்கு',
+      te: 'మీ కుమారుడి చదువు కోసం', mr: 'तुमच्या मुलाच्या शिक्षणासाठी', bn: 'আপনার ছেলের পড়াশোনার জন্য',
+      gu: 'તમારા દીકરાના અભ્યાસ માટે', pa: 'ਤੁਹਾਡੇ ਪੁੱਤਰ ਦੀ ਪੜ੍ਹਾਈ ਲਈ', or: 'ଆପଣଙ୍କ ପୁଅର ପାଠପଢ଼ା ପାଇଁ', ml: 'നിങ്ങളുടെ ಮകന്റെ പഠനത്തിനായി',
+    };
+    if (sonMap[lang]) return sonMap[lang];
+  }
+
+  const needMatch = text.match(/^Matches what you asked for:\s*(.+)$/i);
+  if (needMatch) {
+    const item = needMatch[1].trim();
+    const NEED_WORDS = {
+      'health insurance': { hi: 'स्वास्थ्य बीमा', kn: 'ಆರೋಗ್ಯ ವಿಮೆ', ta: 'மருத்துவக் காப்பீடு', te: 'ఆరోగ్య బీమా', mr: 'आरोग्य विमा', bn: 'স্বাস্থ্য বীমা', gu: 'સ્વાસ્થ્ય વીમો', pa: 'ਸਿਹਤ ਬੀਮਾ', or: 'ସ୍ୱାସ୍ଥ୍ୟ ବୀମା', ml: 'ആരോഗ്യ ഇൻഷുറൻസ്' },
+      pension: { hi: 'पेंशन', kn: 'ಪಿಂಚಣಿ', ta: 'ஓய்வூதியம்', te: 'పింఛను', mr: 'पेन्शन', bn: 'পেনশন', gu: 'પેન્શન', pa: 'ਪੈਨਸ਼ਨ', or: 'ପେନସନ୍', ml: 'പെൻഷൻ' },
+      housing: { hi: 'आवास / घर', kn: 'ವಸತಿ', ta: 'வீடு', te: 'ఇల్లు', mr: 'घर', bn: 'আবাসন', gu: 'આવાસ', pa: 'ਘਰ', or: 'ଆବାସ', ml: 'ഭവനം' },
+    };
+    const itemTrans = NEED_WORDS[item.toLowerCase()]?.[lang];
+    if (itemTrans) {
+      if (lang === 'hi') return `आपकी ज़रूरत के अनुसार: ${itemTrans}`;
+      return `${text} (${itemTrans})`;
+    }
+  }
+
+  const protMatch = text.match(/^Basic protection:\s*(.+)$/i);
+  if (protMatch) {
+    const item = protMatch[1].trim();
+    const PROT_WORDS = {
+      'health insurance': { hi: 'स्वास्थ्य बीमा', kn: 'ಆರೋಗ್ಯ ವಿಮೆ', ta: 'மருத்துவக் காப்பீடு' },
+      pension: { hi: 'पेंशन सुरक्षा', kn: 'ಪಿಂಚಣಿ ಭದ್ರತೆ', ta: 'ஓய்வூதியப் பாதுகாப்பு' },
+      housing: { hi: 'आवास सुरक्षा', kn: 'ವಸತಿ ಭದ್ರತೆ', ta: 'வீட்டுப் பாதுகாப்பு' },
+      'accident insurance': { hi: 'दुर्घटना बीमा', kn: 'ಅಪಘಾತ ವಿಮೆ', ta: 'விபத்துக் காப்பீடு' },
+      'life insurance': { hi: 'जीवन बीमा', kn: 'ಜೀವ ವಿಮೆ', ta: 'ஆயுள் காப்பீடு' },
+    };
+    const itemTrans = PROT_WORDS[item.toLowerCase()]?.[lang];
+    if (itemTrans && lang === 'hi') return `सुरक्षा और सहायता: ${itemTrans}`;
+  }
+
+  if (/For minority communities/i.test(text) && lang === 'hi') return 'अल्पसंख्यक समुदाय के लिए';
+  const casteMatch = text.match(/^For\s+(.+?)\s+category$/i);
+  if (casteMatch && lang === 'hi') return `${casteMatch[1]} वर्ग के लिए`;
+
   return text;
 }

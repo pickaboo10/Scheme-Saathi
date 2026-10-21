@@ -61,13 +61,14 @@ def chat(req: conversation.ChatRequest):
 class MatchRequest(BaseModel):
     profile: Profile
     limit: int = Field(12, ge=1, le=30)
+    language: Language = "en"
 
 
 @app.post("/api/schemes/match")
 async def match(req: MatchRequest):
     if not req.profile.state:
         raise HTTPException(400, "Profile needs at least a state")
-    return await matcher.find_schemes(req.profile, limit=req.limit)
+    return await matcher.find_schemes(req.profile, limit=req.limit, language=req.language)
 
 
 class CardRequest(BaseModel):

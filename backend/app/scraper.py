@@ -156,13 +156,15 @@ async def detail(slug: str, lang: str = "en") -> dict:
     """Full scheme details (benefits, eligibility, how to apply, documents) as plain text."""
     data = await _get_json(DETAIL_URL, {"slug": slug, "lang": lang}, "detail", DETAIL_TTL)
     d = data.get("data") or {}
+    has_native = bool(d.get(lang))
     if not (d.get(lang) or d.get("en")) and lang != "en":
-        data = await _get_json(DETAIL_URL, {"slug": slug, "lang": "en"}, "detail", DETAIL_TTL)
-        d = data.get("data") or {}
+        en_data = await _get_json(DETAIL_URL, {"slug": slug, "lang": "en"}, "detail", DETAIL_TTL)
+        d = en_data.get("data") or {}
 
     lang_section = d.get(lang) or {}
     en_section = d.get("en") or {}
     basic = lang_section.get("basicDetails") or en_section.get("basicDetails") or {}
+    basic_en = en_section.get("basicDetails") or {}
     content = lang_section.get("schemeContent") or en_section.get("schemeContent") or {}
     elig = (lang_section.get("eligibilityCriteria")
             or en_section.get("eligibilityCriteria")
@@ -187,13 +189,51 @@ async def detail(slug: str, lang: str = "en") -> dict:
                       "steps": md_to_text(a.get("process_md")) or rich_to_text(a.get("process"))})
 
     label = lambda v: v.get("label") if isinstance(v, dict) else v   # noqa: E731
+    scheme_name = basic.get("schemeName")
+    official_name = basic_en.get("schemeName") or scheme_name
+
+    # Fallback for schemes like ab-pmjay where detail endpoint data is empty
+    if not scheme_name and slug == "ab-pmjay":
+        from . import localization
+        known_title = localization.get_known_scheme_title("ab-pmjay", lang)
+        scheme_name = known_title or "Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana"
+        official_name = "Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana"
+        has_native = bool(known_title)
+        brief_desc = "₹5,00,000 health insurance cover per family per year for secondary and tertiary care hospitalization."
+        return {
+            "slug": slug,
+            "id": "ab-pmjay",
+            "name": scheme_name,
+            "official_name": official_name,
+            "short_title": "AB-PMJAY",
+            "level": "Central",
+            "ministry": "Ministry Of Health & Family Welfare",
+            "department": "Department of Health and Family Welfare",
+            "scheme_for": "Family",
+            "tags": ["Health", "Insurance", "Hospitalization"],
+            "brief": brief_desc,
+            "description": brief_desc,
+            "benefit_type": "Composite",
+            "benefits": "Cashless health cover up to ₹5,00,000 per family per year at all empaneled hospitals across India.",
+            "eligibility": "Families identified under SECC 2011 database and low-income families as per state guidelines.",
+            "exclusions": "Government employees and families covered under ESIC/CGHS.",
+            "documents": "Aadhaar Card, Ration Card",
+            "apply": [{"mode": "Online", "url": "https://mera.pmjay.gov.in", "steps": "Visit mera.pmjay.gov.in or any nearby Ayushman Arogya Mandir / CSC."}],
+            "references": [],
+            "url": f"{BASE}/schemes/{slug}",
+            "source_language": lang if has_native else "en",
+            "has_native": has_native,
+        }
+
     return {
         "slug": slug,
         "id": d.get("_id"),
-        "name": basic.get("schemeName"),
-        "short_title": basic.get("schemeShortTitle"),
+        "name": scheme_name,
+        "official_name": official_name,
+        "short_title": basic.get("schemeShortTitle") or basic_en.get("schemeShortTitle"),
         "level": label(basic.get("level")),
         "ministry": label(basic.get("nodalMinistryName")),
+        "department": label(basic.get("nodalDepartmentName")),
         "scheme_for": basic.get("schemeFor"),
         "tags": basic.get("tags") or [],
         "brief": content.get("briefDescription"),
@@ -206,4 +246,6 @@ async def detail(slug: str, lang: str = "en") -> dict:
         "apply": apply,
         "references": content.get("references") or [],
         "url": f"{BASE}/schemes/{slug}",
+        "source_language": lang if has_native else "en",
+        "has_native": has_native,
     }
